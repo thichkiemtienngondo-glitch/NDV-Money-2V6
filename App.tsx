@@ -644,6 +644,21 @@ const App: React.FC = () => {
         console.log('[PAYOS] Payment success return');
       } else if (payment === 'cancel') {
         console.log('[PAYOS] Payment cancel return');
+        if (type === 'UPGRADE' && token) {
+          fetch('/payment/cancel-upgrade', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          })
+          .then(() => {
+            // Reload to clear state and re-fetch data, keeping the target screen
+            const newUrl = `${window.location.pathname}?screen=${screen || ''}`;
+            window.location.href = newUrl;
+          })
+          .catch(err => console.error('Error canceling upgrade:', err));
+        }
       }
       
       // Clean up URL parameters without refreshing

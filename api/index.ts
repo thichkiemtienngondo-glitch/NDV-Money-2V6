@@ -1424,10 +1424,19 @@ router.post("/payment/create-link", async (req, res) => {
     let finalDescription = description;
     if (!finalDescription) {
       if (type === 'UPGRADE') {
-        const template = settings.PAYMENT_CONTENT_UPGRADE || "Nang cap {ID} len {RANK}";
+        const template = settings.PAYMENT_CONTENT_UPGRADE || "HANG {RANK} {USER}";
+        const rankNames: Record<string, string> = {
+          'standard': 'TIÊU CHUẨN',
+          'bronze': 'ĐỒNG',
+          'silver': 'BẠC',
+          'gold': 'VÀNG',
+          'diamond': 'KIM CƯƠNG'
+        };
+        const rankName = rankNames[targetRank || ''] || targetRank || '';
+        
         finalDescription = template
           .replace(/\{ID\}|\{USER\}|\{MÃ USER\}/gi, id.replace(/-/g, ''))
-          .replace(/\{RANK\}|\{HẠNG\}/gi, targetRank || '');
+          .replace(/\{RANK\}|\{HẠNG\}|\{TÊN HẠNG CẦN NÂNG\}/gi, rankName);
       } else {
         let template = "";
         let loanData: any = null;
@@ -1495,6 +1504,31 @@ router.post("/payment/create-link", async (req, res) => {
   } catch (e: any) {
     console.error("PayOS Create Link Error:", e);
     res.status(500).json({ error: "Internal Server Error", message: e.message });
+  }
+});
+
+// Cancel Pending Upgrade
+router.post("/payment/cancel-upgrade", authenticateToken, async (req: any, res) => {
+  try {
+    const userId = req.user.id;
+    const client = initSupabase();
+    
+    // Only clear if it was a PayOS attempt (no bill image)
+    const { data: user } = await client.from('users').select('rankUpgradeBill').eq('id', userId).single();
+    
+    if (user && !user.rankUpgradeBill) {
+      await client.from('users').update({
+        pendingUpgradeRank: null,
+        payosCheckoutUrl: null,
+        payosOrderCode: null,
+        updatedAt: Date.now()
+      }).eq('id', userId);
+    }
+    
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("Cancel Upgrade Error:", e);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
